@@ -1,4 +1,7 @@
 # ライブラリ読込
+import matplotlib.pyplot as plt
+
+
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -21,6 +24,16 @@ def create_target_sinusoid(signal_length :int) -> Tensor:
 
     print(f"Target freq/mag/phase: {target_freq.item():.4f} / {target_mag.item():.4f} / {target_phase.item():.4f}")
     return target_sinusoid
+
+def draw2compare(target : Tensor, estimated : Tensor):
+    fig = plt.figure(facecolor="white")
+    ax = fig.add_subplot(111, xlabel="xlabel", ylabel='ylabel')
+
+    ax.plot(target, label="target")
+    ax.plot(estimated, label="estimated")
+
+    ax.legend()  # 凡例表示
+    plt.show()
 
 def estimate_freq():
     # 複素数パラメータ初期化
@@ -49,6 +62,9 @@ def estimate_freq():
 
     print(f"Loss: {loss.item()}")
     print(f"Estimated freq/mag/phase: {param_omega.angle().item():.4f} / {param_phi.abs().item():.4f} / {param_phi.angle().item():.4f}")
+
+    estimated_sinusoid = torch.cos(torch.arange(signal_length) * param_omega.angle() + param_phi.angle()) * param_phi.abs()
+    draw2compare(target_sinusoid[:100], estimated_sinusoid.detach().numpy()[:100])
 
 if __name__ == "__main__":
     estimate_freq()
