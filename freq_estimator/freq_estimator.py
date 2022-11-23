@@ -1,6 +1,3 @@
-from dataclasses import dataclass
-
-
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
@@ -35,6 +32,12 @@ def draw2compare(target : Tensor, estimated : Tensor):
     ax.legend()  # 凡例表示
     plt.show()
 
+def create_target_wave(signal_length :int, sinusoid_num :int) -> Tensor:
+    target_wave = create_target_sinusoid(signal_length)
+    for _ in range(sinusoid_num-1):
+        target_wave += create_target_sinusoid(signal_length)
+    return target_wave
+
 def create_estimated_wave(omega_list :list[Tensor], phi_list :list[Tensor], length:int, num:int) -> Tensor:
     estimated_sinusoid = exp_decay_sinusoid(omega_list[0], phi_list[0], length)
     for i in range(num-1):
@@ -59,10 +62,7 @@ def estimate_freq():
         print(f"Initial freq/mag/phase: {omega.angle().item():.4f} / {phi.abs().item():.4f} / {phi.angle().item():.4f}")
 
     signal_length = 4096
-    target_sinusoid1 = create_target_sinusoid(signal_length)
-    target_sinusoid2 = create_target_sinusoid(signal_length)
-    target_sinusoid = target_sinusoid1 + target_sinusoid2
-
+    target_wave = create_target_wave(signal_length, sinusoid_num)
 
     # 勾配降下ループ
     optimizer = torch.optim.Adam(omega_list + phi_list, lr=1e-4)
@@ -70,7 +70,7 @@ def estimate_freq():
         # パラメーターから減衰正弦波を生成
         estimated_wave = create_estimated_wave(omega_list, phi_list, signal_length, sinusoid_num)
         # 損失関数：Mean Squared Error
-        loss = F.mse_loss(estimated_wave, target_sinusoid)
+        loss = F.mse_loss(estimated_wave, target_wave)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -79,7 +79,7 @@ def estimate_freq():
     for i in range(sinusoid_num):
         print(f"Estimated freq/mag/phase: {omega_list[i].angle().item():.4f} / {phi_list[i].abs().item():.4f} / {phi_list[i].angle().item():.4f}")
     estimated_wave = create_estimated_wave(omega_list, phi_list, signal_length, sinusoid_num)
-    draw2compare(target_sinusoid[:300], estimated_wave.detach().numpy()[:300])
+    draw2compare(target_wave[:300], estimated_wave.detach().numpy()[:300])
 
 if __name__ == "__main__":
     estimate_freq()
