@@ -44,10 +44,9 @@ def create_estimated_wave(omega_list :list[Tensor], phi_list :list[Tensor], leng
         estimated_sinusoid += exp_decay_sinusoid(omega_list[i+1], phi_list[i+1], length)
     return estimated_sinusoid
 
-def estimate_freq():
+def estimate_freq(target_wave :Tensor, signal_length :int, sinusoid_num :int, opt_step :int=50000) -> Tensor:
     # 複素数パラメータ初期化
     # 単位円上の適当な値で初期化します。
-    sinusoid_num = 2
     omega_list: list[Tensor] = []
     phi_list: list[Tensor] = []
 
@@ -61,12 +60,9 @@ def estimate_freq():
         # 初期パラメーターをプリント
         print(f"Initial freq/mag/phase: {omega.angle().item():.4f} / {phi.abs().item():.4f} / {phi.angle().item():.4f}")
 
-    signal_length = 4096
-    target_wave = create_target_wave(signal_length, sinusoid_num)
-
     # 勾配降下ループ
     optimizer = torch.optim.Adam(omega_list + phi_list, lr=1e-4)
-    for _ in tqdm.tqdm(range(50000),desc="Gradient descent"):
+    for _ in tqdm.tqdm(range(opt_step),desc="Gradient descent"):
         # パラメーターから減衰正弦波を生成
         estimated_wave = create_estimated_wave(omega_list, phi_list, signal_length, sinusoid_num)
         # 損失関数：Mean Squared Error
@@ -79,7 +75,11 @@ def estimate_freq():
     for i in range(sinusoid_num):
         print(f"Estimated freq/mag/phase: {omega_list[i].angle().item():.4f} / {phi_list[i].abs().item():.4f} / {phi_list[i].angle().item():.4f}")
     estimated_wave = create_estimated_wave(omega_list, phi_list, signal_length, sinusoid_num)
-    draw2compare(target_wave[:300], estimated_wave.detach().numpy()[:300])
+    return estimated_wave.detach()
 
 if __name__ == "__main__":
-    estimate_freq()
+    signal_length = 4096
+    sinusoid_num = 2
+    target_wave = create_target_wave(signal_length, sinusoid_num)
+    estimated_wave = estimate_freq(target_wave, signal_length, sinusoid_num)
+    draw2compare(target_wave[:300], estimated_wave[:300])
