@@ -35,56 +35,51 @@ def draw2compare(target : Tensor, estimated : Tensor):
     ax.legend()  # 凡例表示
     plt.show()
 
+def create_estimated_wave(omega_list :list[Tensor], phi_list :list[Tensor], length:int, num:int) -> Tensor:
+    estimated_sinusoid = exp_decay_sinusoid(omega_list[0], phi_list[0], length)
+    for i in range(num-1):
+        estimated_sinusoid += exp_decay_sinusoid(omega_list[i+1], phi_list[i+1], length)
+    return estimated_sinusoid
+
 def estimate_freq():
     # 複素数パラメータ初期化
     # 単位円上の適当な値で初期化します。
-    sin_num = 2
+    sinusoid_num = 2
     omega_list: list[Tensor] = []
     phi_list: list[Tensor] = []
 
-    for _ in range(sin_num):
+    for _ in range(sinusoid_num):
         init_freq = torch.rand(1)*torch.pi
         init_phase = torch.rand(1)*torch.pi
         omega = torch.exp(init_freq*1.0j).requires_grad_()    # 角周波数・減衰係数パラメーター
         phi = torch.exp(init_phase*1.0j).requires_grad_()     # 振幅・初期位相パラメーター
         omega_list.append(omega)
         phi_list.append(phi)
-
-    param_omega = omega_list[0]
-    param_phi = phi_list[0]
-    param_omega2 = omega_list[1]
-    param_phi2 = phi_list[1]
+        # 初期パラメーターをプリント
+        print(f"Initial freq/mag/phase: {omega.angle().item():.4f} / {phi.abs().item():.4f} / {phi.angle().item():.4f}")
 
     signal_length = 4096
     target_sinusoid1 = create_target_sinusoid(signal_length)
     target_sinusoid2 = create_target_sinusoid(signal_length)
     target_sinusoid = target_sinusoid1 + target_sinusoid2
 
-    # 初期パラメーターをプリント
-    print(f"Initial freq/mag/phase: {param_omega.angle().item():.4f} / {param_phi.abs().item():.4f} / {param_phi.angle().item():.4f}")
-    print(f"Initial freq/mag/phase: {param_omega2.angle().item():.4f} / {param_phi2.abs().item():.4f} / {param_phi2.angle().item():.4f}")
 
     # 勾配降下ループ
-    optimizer = torch.optim.Adam([param_omega, param_phi, param_omega2, param_phi2], lr=1e-4)
+    optimizer = torch.optim.Adam(omega_list + phi_list, lr=1e-4)
     for _ in tqdm.tqdm(range(50000),desc="Gradient descent"):
         # パラメーターから減衰正弦波を生成
-        estimated_sinusoid1 = exp_decay_sinusoid(param_omega, param_phi, signal_length)
-        estimated_sinusoid2 = exp_decay_sinusoid(param_omega2, param_phi2, signal_length)
-        estimated_sinusoid = estimated_sinusoid1 + estimated_sinusoid2
+        estimated_wave = create_estimated_wave(omega_list, phi_list, signal_length, sinusoid_num)
         # 損失関数：Mean Squared Error
-        loss = F.mse_loss(estimated_sinusoid, target_sinusoid)
+        loss = F.mse_loss(estimated_wave, target_sinusoid)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
     print(f"Loss: {loss.item()}")
-    print(f"Estimated freq/mag/phase: {param_omega.angle().item():.4f} / {param_phi.abs().item():.4f} / {param_phi.angle().item():.4f}")
-    print(f"Estimated2 freq/mag/phase: {param_omega2.angle().item():.4f} / {param_phi2.abs().item():.4f} / {param_phi2.angle().item():.4f}")
-
-    estimated_sinusoid1 = torch.cos(torch.arange(signal_length) * param_omega.angle() + param_phi.angle()) * param_phi.abs()
-    estimated_sinusoid2 = torch.cos(torch.arange(signal_length) * param_omega2.angle() + param_phi2.angle()) * param_phi2.abs()
-    estimated_sinusoid = estimated_sinusoid1 + estimated_sinusoid2
-    draw2compare(target_sinusoid[:300], estimated_sinusoid.detach().numpy()[:300])
+    for i in range(sinusoid_num):
+        print(f"Estimated freq/mag/phase: {omega_list[i].angle().item():.4f} / {phi_list[i].abs().item():.4f} / {phi_list[i].angle().item():.4f}")
+    estimated_wave = create_estimated_wave(omega_list, phi_list, signal_length, sinusoid_num)
+    draw2compare(target_sinusoid[:300], estimated_wave.detach().numpy()[:300])
 
 if __name__ == "__main__":
     estimate_freq()
