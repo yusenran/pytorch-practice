@@ -38,14 +38,22 @@ def draw2compare(target : Tensor, estimated : Tensor):
 def estimate_freq():
     # 複素数パラメータ初期化
     # 単位円上の適当な値で初期化します。
-    init_freq = torch.rand(1)*torch.pi
-    init_phase = torch.rand(1)*torch.pi
-    init_freq2 = torch.rand(1)*torch.pi
-    init_phase2 = torch.rand(1)*torch.pi
-    param_omega = torch.exp(init_freq*1.0j).requires_grad_()    # 角周波数・減衰係数パラメーター
-    param_phi = torch.exp(init_phase*1.0j).requires_grad_()     # 振幅・初期位相パラメーター
-    param_omega2 = torch.exp(init_freq2*1.0j).requires_grad_()    # 角周波数・減衰係数パラメーター
-    param_phi2 = torch.exp(init_phase2*1.0j).requires_grad_()     # 振幅・初期位相パラメーター
+    sin_num = 2
+    omega_list: list[Tensor] = []
+    phi_list: list[Tensor] = []
+
+    for _ in range(sin_num):
+        init_freq = torch.rand(1)*torch.pi
+        init_phase = torch.rand(1)*torch.pi
+        omega = torch.exp(init_freq*1.0j).requires_grad_()    # 角周波数・減衰係数パラメーター
+        phi = torch.exp(init_phase*1.0j).requires_grad_()     # 振幅・初期位相パラメーター
+        omega_list.append(omega)
+        phi_list.append(phi)
+
+    param_omega = omega_list[0]
+    param_phi = phi_list[0]
+    param_omega2 = omega_list[1]
+    param_phi2 = phi_list[1]
 
     signal_length = 4096
     target_sinusoid1 = create_target_sinusoid(signal_length)
